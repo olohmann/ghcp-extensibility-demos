@@ -1,8 +1,7 @@
-import crypto from 'crypto';
 import express from 'express';
-import { faker } from '@faker-js/faker';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
+import { faker } from '@faker-js/faker';
 import { signatureVerificationMiddleware } from './middleware/signatureVerification.js';
 
 // Load environment variables from .env file
@@ -16,15 +15,15 @@ app.use(helmet());
 
 // Environment variables setup with validation
 const PORT = process.env.PORT || 3000;
-const GH_WEBHOOK_SECRET = process.env.COPILOT_SECRET;
+const DEBUG_MODE = process.env.DEBUG === 'true';
 
-if (!GH_WEBHOOK_SECRET) {
-  console.warn('Warning: COPILOT_SECRET environment variable not set. Using insecure default.');
+// Apply signature verification middleware with auto-rejection enabled, but skip in debug mode
+if (!DEBUG_MODE) {
+  console.log('Signature verification middleware enabled');
+  app.use(signatureVerificationMiddleware({ autoReject: true }));
+} else {
+  console.log('DEBUG MODE: Signature verification middleware skipped');
 }
-
-// Apply signature verification middleware with auto-rejection enabled
-// This will automatically handle the signature verification and reject invalid requests
-app.use(signatureVerificationMiddleware(GH_WEBHOOK_SECRET, { autoReject: true }));
 
 // Route: Generate a random tech product name
 app.post('/random-product-name', (req, res) => {
@@ -86,24 +85,6 @@ const server = app.listen(PORT, () => {
   console.error('Failed to start server:', err);
   process.exit(1);
 });
-
-// Graceful shutdown handling
-process.on('SIGTERM', gracefulShutdown);
-process.on('SIGINT', gracefulShutdown);
-
-function gracefulShutdown() {
-  console.log('Received shutdown signal, closing server gracefully...');
-  server.close(() => {
-    console.log('Server closed successfully');
-    process.exit(0);
-  });
-  
-  // Force close after timeout
-  setTimeout(() => {
-    console.error('Forcing server close after timeout');
-    process.exit(1);
-  }, 10000);
-}
 
 // For testing exports
 export { app };
