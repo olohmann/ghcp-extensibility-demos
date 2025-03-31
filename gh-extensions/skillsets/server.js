@@ -17,10 +17,10 @@ app.use(helmet());
 const PORT = process.env.PORT || 3000;
 const DEBUG_MODE = process.env.DEBUG === 'true';
 
-// Apply signature verification middleware with auto-rejection enabled, but skip in debug mode
+// Apply signature verification middleware, but skip in debug mode
 if (!DEBUG_MODE) {
   console.log('Signature verification middleware enabled');
-  app.use(signatureVerificationMiddleware({ autoReject: true }));
+  app.use(signatureVerificationMiddleware());
 } else {
   console.log('DEBUG MODE: Signature verification middleware skipped');
 }

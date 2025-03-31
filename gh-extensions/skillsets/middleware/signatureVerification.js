@@ -73,11 +73,9 @@ async function verifySignature(payload, signature, keyID) {
 
 /**
  * Middleware for GitHub Copilot request signature verification
- * @param {Object} options - Options for the middleware
- * @param {boolean} options.autoReject - Whether to automatically reject invalid signatures
  * @returns {function} - Express middleware function
  */
-export function signatureVerificationMiddleware(options = { autoReject: true }) {
+export function signatureVerificationMiddleware() {
   // First middleware to parse the JSON and store raw body for verification
   const jsonParser = express.json({
     verify: (req, res, buf, encoding) => {
@@ -93,24 +91,16 @@ export function signatureVerificationMiddleware(options = { autoReject: true }) 
         return next();
       }
       
-      console.log('All headers:', JSON.stringify(req.headers, null, 2));
-      
       // Update to use the correct header names for Copilot API
       const signature = req.headers['x-github-public-key-signature'];
       const keyID = req.headers['x-github-public-key-identifier'];
       
-      console.log('Signature:', signature);
-      console.log('Key ID:', keyID);
-      
       if (!signature || !keyID) {
         req.signatureIsValid = false;
-        if (options.autoReject) {
-          return res.status(401).json({
-            error: 'Unauthorized',
-            message: 'Missing GitHub Copilot signature or key ID'
-          });
-        }
-        return next();
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Missing GitHub Copilot signature or key ID'
+        });
       }
       
       req.signatureIsValid = await verifySignature(
@@ -119,24 +109,21 @@ export function signatureVerificationMiddleware(options = { autoReject: true }) 
         keyID
       );
       
-      if (!req.signatureIsValid && options.autoReject) {
+      if (!req.signatureIsValid) {
         return res.status(401).json({
           error: 'Unauthorized',
           message: 'Invalid GitHub Copilot signature'
         });
       }
       
-      next();
+      // Only proceed to the next middleware if signature is valid
+      return next();
     } catch (error) {
       console.error('Error in signature verification middleware:', error);
-      if (options.autoReject) {
-        return res.status(500).json({
-          error: 'Internal Server Error',
-          message: 'Failed to verify signature'
-        });
-      }
-      req.signatureIsValid = false;
-      next();
+      return res.status(500).json({
+        error: 'Internal Server Error',
+        message: 'Failed to verify signature'
+      });
     }
   };
 
